@@ -70,15 +70,87 @@ function isAuthenticated(req) {
   }
   
   // Login route
-  app.get('/auth/login', (req, res) => {
-    if (isAuthenticated(req)) {
-      // If user is already authenticated, redirect to dashboard or home page
-      return res.redirect('/poll'); // Change '/dashboard' to your desired page
+  function generateCaptcha() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let captchaCode = '';
+    for (let i = 0; i < 5; i++) {
+        const randomIndex = Math.floor(Math.random() * chars.length);
+        captchaCode += chars[randomIndex];
     }
+    return captchaCode;
+}
+
+// Route to serve the login page with CAPTCHA
+let captchas = [];
+
+// Function to generate a CAPTCHA code
+function generateCaptcha() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let captchaCode = '';
+    for (let i = 0; i < 5; i++) {
+        const randomIndex = Math.floor(Math.random() * chars.length);
+        captchaCode += chars[randomIndex];
+    }
+    return captchaCode;
+}
+
+// Cleanup expired CAPTCHAs
+function cleanupCaptchaStore() {
+    const now = Date.now();
+    for (const key in captchaStore) {
+        if (now > captchaStore[key].expiresAt) {
+            delete captchaStore[key];
+        }
+    }
+}
+
+// Route to serve the login page with CAPTCHA
+app.get('/auth/login', (req, res) => {
+    if (req.session.userId) {
+        return res.redirect('/poll');
+    }
+
+    // Generate new CAPTCHA and store it in captchaStore with an expiry time
+    const captchaCode = generateCaptcha();
+    const index = Math.random().toString(36).substring(2, 15);
     
-    // If user is not authenticated, serve the login page
-    res.sendFile(path.join(__dirname, 'login.html'));
-  });
+    captchas.push({
+        index:index,
+        captcha:captchaCode
+    })
+    console.log(captchas);
+    // Clean up old CAPTCHAs
+    res.render('login', { index , captchaCode });
+});
+
+// Route to handle login form submission
+app.post('/auth/login', async (req, res) => {
+    const { email, password, captcha , index } = req.body;
+    if (!captcha) {
+        return res.status(400).json({message :"No Captcha Provided"})
+    }
+    console.log( email, password, captcha , index );
+    console.log(captchas.find(c => c.index === index));
+    
+    if (captcha!== captchas.find(c => c.index === index).captcha) {
+        return res.send("You Can't Attack Me")
+    }
+    // Validate CAPTCHA using captchaStore
+    // Remove CAPTCHA from captchaStore once validated
+   
+    try {
+        const user = await User.findOne({ email });
+        if (!user) return res.send('User not found');
+        if (!user.verified) return res.send('Please verify your email before logging in');
+        if (user.password !== password) return res.send('Invalid credentials');
+
+        req.session.userId = user._id;
+        res.redirect('/poll');
+    } catch (err) {
+        console.error('Error logging in:', err);
+        res.send('Error logging in');
+    }
+});
 
 app.post('/auth/register', async (req, res) => {
     const { email, password } = req.body;
@@ -93,7 +165,7 @@ app.post('/auth/register', async (req, res) => {
             from: 'pinnukoushik1@gmail.com',
             to: email,
             subject: 'Verify Your Email',
-            text: `Thank you for registering. Please verify your email by clicking on the following link: http://localhost:3000/verify-email/${user._id}`
+            text: `Thank you for registering. Please verify your email by clicking on the following link: http://localhost:4000/verify-email/${user._id}`
         };
 
         transporter.sendMail(mailOptions, (err, info) => {
@@ -126,22 +198,7 @@ app.get('/verify-email/:id', async (req, res) => {
     }
 });
 
-app.post('/auth/login', async (req, res) => {
-    const { email, password } = req.body;
 
-    try {
-        const user = await User.findOne({ email });
-        if (!user) return res.send('User not found');
-        if (!user.verified) return res.send('Please verify your email before logging in');
-        if (user.password !== password) return res.send('Invalid credentials');
-        // Set user ID in session
-        req.session.userId = user._id;
-        res.redirect(`/poll`);
-    } catch (err) {
-        console.error('Error logging in:', err);
-        res.send('Error logging in');
-    }
-});
 app.get('/auth/logout', (req, res) => {
     // Destroy the session
     req.session.destroy((err) => {
@@ -185,7 +242,9 @@ app.post('/poll', ensureAuthenticated, async (req, res) => {
     const userId = req.session.userId;
     console.log(userId);
     console.log(`Vote received: ${answer}`);  // Check if this logs either 'yes' or 'no'
-
+    if (userId === undefined) {
+     return   res.status(200).send('You Cant Attack My Website');
+    }
     try {
         const user = await User.findById(userId);
         if (!user || user.answeredPoll) return res.status(404).send('User not found or poll already answered');
@@ -219,6 +278,6 @@ app.get('/results', async (req, res) => {
 });
 
 // Start the server
-app.listen(3000, () => {
+app.listen(4000, () => {
     console.log('Server running on http://localhost:3000');
 });

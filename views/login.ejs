@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register</title>
-    <link rel="stylesheet" href="/style.css">
+    <title>Login with CAPTCHA</title>
+    <link rel="stylesheet" href="/css/style.css">
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -56,7 +56,7 @@
         button {
             width: 100%;
             padding: 12px;
-            background: linear-gradient(135deg, #28a745, #218838);
+            background: linear-gradient(135deg, #00ADB5, #00A3A4);
             border: none;
             color: white;
             border-radius: 5px;
@@ -67,7 +67,7 @@
         }
 
         button:hover {
-            background: linear-gradient(135deg, #218838, #1E7D32);
+            background: linear-gradient(135deg, #00A3A4, #008A8D);
         }
 
         p {
@@ -86,17 +86,61 @@
             color: #007E7E;
         }
 
+        .captcha-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        #captcha {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 18px;
+            background-color: #f0f0f0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 120px;
+            text-align: center;
+        }
+
+        .captcha-container input {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Register</h2>
-        <form id="register-form" action="/auth/register" method="POST">
+        <h2>Login</h2>
+        <form id="login-form" action="/auth/login" method="POST" onsubmit="return validateCaptcha()">
             <input type="email" name="email" placeholder="Email" required>
             <input type="password" name="password" placeholder="Password" required>
-            <button type="submit">Register</button>
+            <input name="index" type="text" value="<%= index %>" hidden>
+            <!-- CAPTCHA Section -->
+            <div class="captcha-container">
+                <input type="text" id="captcha-input" name="captcha" placeholder="Enter CAPTCHA" required />
+                <div id="captcha"><%= captchaCode %></div>
+            </div>
+
+            <button type="submit">Login</button>
         </form>
-        <p>Already have an account? <a href="/auth/login">Login here</a></p>
+        <p>Don't have an account? <a href="/">Register here</a></p>
     </div>
+
+    <script>
+        function validateCaptcha() {
+            const captchaCode = document.getElementById('captcha').innerText.trim();
+            const userCaptcha = document.getElementById('captcha-input').value.trim();
+            
+            if (userCaptcha === captchaCode) {
+                return true; // CAPTCHA is correct, allow form submission
+            } else {
+                alert('CAPTCHA Not Matched');
+                return false; // CAPTCHA is incorrect, prevent form submission
+            }
+        }
+    </script>
 </body>
 </html>

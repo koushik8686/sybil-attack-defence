@@ -7,7 +7,7 @@ import threading
 
 # DEST_IP = "192.168.83.232"
 DEST_IP = "localhost"
-BASE_URL = f"http://{DEST_IP}:3000"
+BASE_URL = f"http://{DEST_IP}:4000"
 
 def register(url, email):
     password = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
@@ -39,6 +39,7 @@ def login_and_respond_poll(email: str, password: str):
     response = requests.post(poll_url, data=data, headers={"cookie": header})
     print(response.text)
 
+flag = True
 
 def attack():
     # Generate a random name (not used in this example but shown as per original code)
@@ -59,7 +60,7 @@ def attack():
 
     try:
         i = 0
-        while i < 20:
+        while i < 20 and flag:
             response1 = requests.get(url1)
             # response1.raise_for_status()
             data = response1.json() if response1.status_code == 200 else {}
@@ -113,7 +114,7 @@ def attack():
 threads = []
 
 # Create multiple threads
-for i in range(20):  # Number of parallel threads
+for i in range(1):  # Number of parallel threads
     thread = threading.Thread(target=attack) #, args=(f"Thread-{i+1}", i+2))
     threads.append(thread)
 
